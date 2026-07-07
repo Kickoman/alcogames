@@ -171,22 +171,8 @@
     }
   });
 
-  function playersLabel(game) {
-    const min = game.min_players;
-    const max = game.max_players;
-    if (min === 1 && max === null) return 'любое';
-    if (max === null) return `${min}+`;
-    if (min === max) return `${min}`;
-    return `${min}–${max}`;
-  }
-
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
   function renderTable() {
+    const { escapeHtml, playersLabel } = AlcogamesRender;
     tableBody.innerHTML = '';
     allGames.forEach((game) => {
       const tr = document.createElement('tr');

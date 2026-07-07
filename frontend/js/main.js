@@ -13,14 +13,7 @@
   const emptyState = document.getElementById('empty-state');
   const loadingState = document.getElementById('loading-state');
 
-  function playersLabel(game) {
-    const min = game.min_players;
-    const max = game.max_players;
-    if (min === 1 && max === null) return 'любое количество';
-    if (max === null) return `${min}+`;
-    if (min === max) return `${min}`;
-    return `${min}–${max}`;
-  }
+  const DESCRIPTION_PREVIEW_LEN = 220;
 
   function matchesPlayerCount(game, count) {
     if (count === null) return true;
@@ -54,38 +47,25 @@
     return sorted;
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  function renderSource(source) {
-    if (/^https?:\/\//i.test(source)) {
-      const safe = escapeHtml(source);
-      return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a>`;
-    }
-    return escapeHtml(source);
-  }
-
-  function formatDate(iso) {
-    const d = new Date(iso);
-    return d.toLocaleDateString('ru-RU');
-  }
-
   function renderCard(game, likedIds) {
+    const { escapeHtml, playersLabel, formatDate, renderSourceHtml, truncate, gameUrl } =
+      AlcogamesRender;
+
     const card = document.createElement('article');
     card.className = 'game-card';
     const liked = likedIds.has(game.id);
+    const preview = truncate(game.description, DESCRIPTION_PREVIEW_LEN);
+    const url = gameUrl(game.id);
 
     card.innerHTML = `
-      <h2>${escapeHtml(game.name)}</h2>
+      <h2><a class="game-title-link" href="${url}">${escapeHtml(game.name)}</a></h2>
       <div class="meta">
         <span class="badge">👥 ${playersLabel(game)}</span>
         <span class="badge muted">${formatDate(game.date_added)}</span>
       </div>
-      <p class="description">${escapeHtml(game.description)}</p>
-      ${game.source ? `<p class="source">Источник: ${renderSource(game.source)}</p>` : ''}
+      <p class="description">${escapeHtml(preview.text)}</p>
+      ${preview.truncated ? `<a class="read-more" href="${url}">Показать полностью →</a>` : ''}
+      ${game.source ? `<p class="source">Источник: ${renderSourceHtml(game.source)}</p>` : ''}
       <button class="like-btn" ${liked ? 'disabled' : ''}>
         👍 <span class="like-count">${game.likes}</span>
       </button>
