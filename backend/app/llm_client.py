@@ -18,12 +18,24 @@ no markdown code fences:
     the game works for any number of players, use 1),
   "max_players": integer or null - maximum number of players (null means "no upper limit",
     use this for "any number of players" or "N or more" descriptions),
-  "description": string - a clear, well-written 1-4 sentence description of how to play,
-    in the same language as the input text, cleaned up from the source text,
+  "description": string - the FULL rules of the game, in the same language as the input text,
   "source": string or null - a URL or reference mentioned in the text, otherwise null
 }
 
-Rules:
+Rules for "description" - this is the most important part, read carefully:
+- Do NOT summarize or shorten the rules. Do NOT compress a detailed rule list into a short
+  generic paragraph. The goal is a complete, usable rulebook a player could follow without
+  having read the original text - not a blurb or teaser.
+- Keep every rule, every enumerated case (e.g. "if you roll a 2, then...", every item of a
+  list of actions/penalties/exceptions), every required prop/item, and every special
+  condition or exception from the source text. If the source lists outcomes for dice rolls,
+  cards, or turns, reproduce each one individually - do not group or generalize them.
+- You MAY fix spelling/grammar, remove duplication, and reformat for clarity (e.g. using
+  line breaks or a numbered/bulleted list) - but the informational content must be
+  preserved in full. When in doubt, keep more detail rather than less.
+- Only omit text that is truly not a rule (site navigation, ads, unrelated comments).
+
+Other rules:
 - Always return valid JSON matching exactly this shape, with exactly these 5 keys.
 - min_players must be an integer >= 1.
 - If player count is not mentioned at all, use min_players=1, max_players=null as a safe

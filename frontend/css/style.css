@@ -187,6 +187,7 @@ button.danger:hover:not(:disabled) {
 .description {
   margin: 0;
   font-size: 0.95rem;
+  white-space: pre-line;
 }
 
 .source {
