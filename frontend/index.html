@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Алкогольные игры для вечеринок</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>🍻 Алкогольные игры для вечеринок</h1>
+    <a class="admin-link" href="admin.html">Админка</a>
+  </header>
+
+  <section class="controls">
+    <div class="control-group">
+      <label for="sort-select">Сортировка</label>
+      <select id="sort-select">
+        <option value="date-desc">Сначала новые</option>
+        <option value="date-asc">Сначала старые</option>
+        <option value="name-asc">Имя А-Я</option>
+        <option value="name-desc">Имя Я-А</option>
+        <option value="likes-desc">Сначала популярные</option>
+        <option value="likes-asc">Сначала непопулярные</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="filter-players">Сколько вас?</label>
+      <input type="number" id="filter-players" min="1" placeholder="напр. 4">
+      <button id="filter-btn">Показать подходящие</button>
+      <button id="filter-reset-btn" class="secondary">Сбросить</button>
+    </div>
+
+    <div class="control-group">
+      <label for="random-players">Случайная игра для скольки?</label>
+      <input type="number" id="random-players" min="1" placeholder="напр. 4">
+      <button id="random-btn">🎲 Выбрать случайную!</button>
+    </div>
+  </section>
+
+  <section id="random-result" class="random-result hidden"></section>
+
+  <p id="loading-state" class="loading-state">Загрузка...</p>
+  <p id="empty-state" class="empty-state hidden">Игр не найдено.</p>
+  <section id="games-list" class="games-list"></section>
+
+  <script src="js/api.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

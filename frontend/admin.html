@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Админка — Алкогольные игры</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>Админка</h1>
+    <div class="header-actions">
+      <a href="index.html">← К списку игр</a>
+      <button id="logout-btn" class="secondary hidden">Выйти</button>
+    </div>
+  </header>
+
+  <section id="login-section" class="panel">
+    <h2>Вход</h2>
+    <p>Введите админский токен (задан в <code>.env</code> на сервере, переменная <code>ADMIN_TOKEN</code>).</p>
+    <input type="password" id="token-input" placeholder="Admin token">
+    <button id="login-btn">Войти</button>
+    <p id="login-error" class="status error hidden"></p>
+  </section>
+
+  <section id="admin-content" class="hidden">
+    <section class="panel llm-assist">
+      <h2>Заполнить через LLM</h2>
+      <p>Вставьте произвольное описание игры — LLM попробует разложить его на поля формы ниже. Результат нужно проверить перед сохранением.</p>
+      <textarea id="llm-input" rows="5" placeholder="Например: Царь горы - весёлая игра для компании от 4 человек, где..."></textarea>
+      <button id="llm-parse-btn">Распарсить через LLM</button>
+      <p id="llm-status" class="status hidden"></p>
+    </section>
+
+    <section class="panel game-form">
+      <h2 id="form-title">Новая игра</h2>
+      <form id="game-form">
+        <label>Название
+          <input type="text" id="field-name" required>
+        </label>
+        <div class="players-fields">
+          <label>Мин. игроков
+            <input type="number" id="field-min" min="1" value="1" required>
+          </label>
+          <label>Макс. игроков
+            <input type="number" id="field-max" min="1">
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="field-no-max"> Без верхней границы (любое количество)
+          </label>
+        </div>
+        <label>Описание
+          <textarea id="field-description" rows="4" required></textarea>
+        </label>
+        <label>Источник (опционально)
+          <input type="text" id="field-source" placeholder="URL или произвольная ссылка">
+        </label>
+        <div class="form-actions">
+          <button type="submit" id="save-btn">Сохранить</button>
+          <button type="button" id="cancel-edit-btn" class="secondary hidden">Отменить редактирование</button>
+        </div>
+        <p id="form-status" class="status hidden"></p>
+      </form>
+    </section>
+
+    <section class="panel games-table-section">
+      <h2>Существующие игры</h2>
+      <table class="games-table">
+        <thead>
+          <tr><th>Название</th><th>Игроки</th><th>Лайки</th><th></th></tr>
+        </thead>
+        <tbody id="games-table-body"></tbody>
+      </table>
+    </section>
+  </section>
+
+  <script src="js/api.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
