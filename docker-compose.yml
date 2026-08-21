@@ -8,4 +8,24 @@ services:
     volumes:
       - ./data:/app/data
     ports:
-      - "8000:8000"
+      # Port comes from .env so the deployed host needs no local edit here.
+      - "${PORT:-8000}:8000"
+    environment:
+      SERVICE_NAME: alcogames
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    labels:
+      # Picked up by the log collector; without it the container is ignored.
+      logging: "true"
+    logging:
+      driver: json-file
+      options:
+        # Local safety net: if the collector is down, logs still rotate
+        # instead of filling the disk.
+        max-size: "50m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

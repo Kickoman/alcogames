@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from .. import storage
+from ..logging_setup import get_logger
 from ..models import Game, LikeResponse
 
 router = APIRouter(prefix="/api", tags=["games"])
+log = get_logger(stream="internal")
 
 LIKED_COOKIE = "liked_games"
 COOKIE_MAX_AGE = 10 * 365 * 24 * 60 * 60  # ~10 years
@@ -36,7 +38,10 @@ def like_game(game_id: str, request: Request, response: Response) -> LikeRespons
 
     game = storage.like_game(game_id)
     if game is None:
+        log.warning("game_not_found", game_id=game_id, action="like")
         raise HTTPException(status_code=404, detail="Game not found")
+
+    log.info("game_liked", game_id=game_id, likes=game.likes)
 
     liked.add(game_id)
     response.set_cookie(

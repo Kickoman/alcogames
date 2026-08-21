@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/app ./app
 COPY frontend ./frontend
 
+ENV PYTHONUNBUFFERED=1
+ENV SERVICE_NAME=alcogames
 ENV DATA_DIR=/app/data
 ENV FRONTEND_DIR=/app/frontend
 
