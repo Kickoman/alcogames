@@ -15,4 +15,7 @@ ENV FRONTEND_DIR=/app/frontend
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# --no-proxy-headers: uvicorn otherwise rewrites request.client from the
+# forwarded headers when the peer is trusted, which erases the one address
+# that is always true. The app records both itself, deliberately.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-proxy-headers"]

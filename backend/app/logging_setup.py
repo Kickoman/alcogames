@@ -54,6 +54,19 @@ def _rename_fields(_logger: Any, _name: str, event: dict) -> dict:
     return event
 
 
+def _rename_foreign_fields(_logger: Any, _name: str, event: dict) -> dict:
+    """Same as _rename_fields, but for logs coming from libraries.
+
+    Their entire message lands in "event" -- pids, ports and all. That column
+    is LowCardinality, so every restart with a new pid adds another value to
+    its dictionary, without bound. Keep the text in "message" and give these
+    one stable event name.
+    """
+    event = _rename_fields(_logger, _name, event)
+    event["event"] = "log"
+    return event
+
+
 _SHARED_PROCESSORS = [
     structlog.processors.add_log_level,
     structlog.processors.TimeStamper(fmt="iso", utc=True),
@@ -87,7 +100,7 @@ def setup_logging(service: str = "alcogames", level: str | None = None) -> None:
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
             processor=structlog.processors.JSONRenderer(ensure_ascii=False),
-            foreign_pre_chain=[*_SHARED_PROCESSORS, _rename_fields],
+            foreign_pre_chain=[*_SHARED_PROCESSORS, _rename_foreign_fields],
         )
     )
     root = logging.getLogger()
@@ -123,6 +136,30 @@ def new_trace(trace_id: str | None = None) -> str:
     trace_id = trace_id or uuid.uuid4().hex
     _trace_id.set(trace_id)
     return trace_id
+
+
+def client_addresses(request) -> dict:
+    """Both the direct peer and the originating client.
+
+    Behind a reverse proxy the socket peer is the proxy, which says nothing
+    about who actually made the request, so the real client is recovered from
+    the headers. Both are kept: ``peer_ip`` is always what really connected,
+    while ``client_ip`` is a claim no stronger than the proxy in front.
+
+    ``X-Real-IP`` is preferred because nginx *sets* it, replacing anything the
+    client sent. ``X-Forwarded-For`` is *appended* to, so its leftmost entries
+    are whatever the client chose to put there; the trustworthy one is the
+    last, which is the address nginx itself saw.
+    """
+    peer = request.client.host if request.client else ""
+    real = (request.headers.get("x-real-ip") or "").strip()
+    forwarded = (request.headers.get("x-forwarded-for") or "").strip()
+    chain = [part.strip() for part in forwarded.split(",") if part.strip()]
+
+    fields = {"peer_ip": peer, "client_ip": real or (chain[-1] if chain else peer)}
+    if forwarded:
+        fields["forwarded_for"] = forwarded
+    return fields
 
 
 def _route_of(request: Request) -> str:
@@ -181,7 +218,5 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
                 http_status=status,
                 duration_ms=round((time.perf_counter() - started) * 1000, 2),
                 error=error,
-                client=request.headers.get(
-                    "x-forwarded-for", request.client.host if request.client else ""
-                ),
+                **client_addresses(request),
             )
