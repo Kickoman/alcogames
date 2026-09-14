@@ -70,6 +70,19 @@ def update_game(game_id: str, data: GameUpdate) -> Game | None:
         return None
 
 
+def patch_game(game_id: str, fields: dict) -> Game | None:
+    """Update a subset of fields, keeping everything else (id, likes, date) intact."""
+    with _lock:
+        games = _read_all()
+        for i, g in enumerate(games):
+            if g["id"] == game_id:
+                updated = Game(**{**g, **fields})
+                games[i] = updated.model_dump()
+                _atomic_write(games)
+                return updated
+        return None
+
+
 def delete_game(game_id: str) -> bool:
     with _lock:
         games = _read_all()

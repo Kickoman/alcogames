@@ -1,156 +1,218 @@
 (() => {
-  let allGames = [];
-  let filterCount = null;
+  const R = AlcogamesRender;
+  const QUICK_PICKS = [2, 3, 4, 5, 6, 8, 10];
 
+  const quickPicks = document.getElementById('quick-picks');
+  const playersOther = document.getElementById('players-other');
   const sortSelect = document.getElementById('sort-select');
-  const filterInput = document.getElementById('filter-players');
-  const filterBtn = document.getElementById('filter-btn');
-  const filterResetBtn = document.getElementById('filter-reset-btn');
-  const randomInput = document.getElementById('random-players');
   const randomBtn = document.getElementById('random-btn');
-  const randomResult = document.getElementById('random-result');
+  const resetBtn = document.getElementById('reset-btn');
+  const terminal = document.getElementById('terminal');
+  const luckyPanel = document.getElementById('lucky-panel');
+  const luckyTitle = document.getElementById('lucky-title');
+  const luckyMeta = document.getElementById('lucky-meta');
+  const luckyOpen = document.getElementById('lucky-open');
+  const luckyAgain = document.getElementById('lucky-again');
+  const countLabel = document.getElementById('count-label');
+  const emptyNotice = document.getElementById('empty-notice');
+  const errorNotice = document.getElementById('error-notice');
   const gamesList = document.getElementById('games-list');
-  const emptyState = document.getElementById('empty-state');
-  const loadingState = document.getElementById('loading-state');
+  const scrim = document.getElementById('dialog-scrim');
+  const dialogTitle = document.getElementById('dialog-title');
+  const dialogBody = document.getElementById('dialog-body');
+  const dialogClose = document.getElementById('dialog-close');
 
-  const DESCRIPTION_PREVIEW_LEN = 220;
+  let allGames = null;
+  let players = null; // number or null
+  let randomId = null;
+  let openId = null;
 
-  function matchesPlayerCount(game, count) {
-    if (count === null) return true;
-    if (count < game.min_players) return false;
-    if (game.max_players !== null && count > game.max_players) return false;
+  R.initThemeToggle(document.getElementById('theme-toggle'));
+
+  function matches(game, n) {
+    if (n === null) return true;
+    if (n < game.min_players) return false;
+    if (game.max_players !== null && n > game.max_players) return false;
     return true;
   }
 
-  function sortGames(games, mode) {
-    const sorted = games.slice();
-    switch (mode) {
-      case 'date-asc':
-        sorted.sort((a, b) => a.date_added.localeCompare(b.date_added));
-        break;
-      case 'name-asc':
-        sorted.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-        break;
-      case 'name-desc':
-        sorted.sort((a, b) => b.name.localeCompare(a.name, 'ru'));
-        break;
-      case 'likes-desc':
-        sorted.sort((a, b) => b.likes - a.likes);
-        break;
-      case 'likes-asc':
-        sorted.sort((a, b) => a.likes - b.likes);
-        break;
-      case 'date-desc':
-      default:
-        sorted.sort((a, b) => b.date_added.localeCompare(a.date_added));
-    }
-    return sorted;
+  function sortGames(list, mode) {
+    const out = list.slice();
+    out.sort((a, b) => {
+      if (mode === 'new') return b.date_added.localeCompare(a.date_added);
+      if (mode === 'old') return a.date_added.localeCompare(b.date_added);
+      if (mode === 'az') return a.name.localeCompare(b.name, 'ru');
+      if (mode === 'za') return b.name.localeCompare(a.name, 'ru');
+      return mode === 'pop' ? b.likes - a.likes : a.likes - b.likes;
+    });
+    return out;
   }
 
-  function renderCard(game, likedIds) {
-    const { escapeHtml, playersLabel, formatDate, renderSourceHtml, truncate, gameUrl } =
-      AlcogamesRender;
+  function matched() {
+    if (!allGames) return [];
+    return sortGames(allGames.filter((g) => matches(g, players)), sortSelect.value);
+  }
 
-    const card = document.createElement('article');
-    card.className = 'game-card';
-    const liked = likedIds.has(game.id);
-    const preview = truncate(game.description, DESCRIPTION_PREVIEW_LEN);
-    const url = gameUrl(game.id);
+  function findGame(id) {
+    return (allGames || []).find((g) => g.id === id) || null;
+  }
 
-    card.innerHTML = `
-      <h2><a class="game-title-link" href="${url}">${escapeHtml(game.name)}</a></h2>
-      <div class="meta">
-        <span class="badge">👥 ${playersLabel(game)}</span>
-        <span class="badge muted">${formatDate(game.date_added)}</span>
-      </div>
-      <p class="description">${escapeHtml(preview.text)}</p>
-      ${preview.truncated ? `<a class="read-more" href="${url}">Показать полностью →</a>` : ''}
-      ${game.source ? `<p class="source">Источник: ${renderSourceHtml(game.source)}</p>` : ''}
-      <button class="like-btn" ${liked ? 'disabled' : ''}>
-        👍 <span class="like-count">${game.likes}</span>
-      </button>
-    `;
+  function metaLine(game) {
+    return `${R.playersSentence(game)} · ${R.timeLabel(game)} · ${game.likes} ${R.plural(game.likes, 'лайк', 'лайка', 'лайков')}`;
+  }
 
-    const likeBtn = card.querySelector('.like-btn');
-    likeBtn.addEventListener('click', async () => {
-      likeBtn.disabled = true;
-      try {
-        const result = await AlcogamesAPI.likeGame(game.id);
-        likeBtn.querySelector('.like-count').textContent = result.likes;
-        game.likes = result.likes;
-      } catch (e) {
-        likeBtn.disabled = false;
-        alert('Не удалось поставить лайк: ' + e.message);
-      }
+  // --- quick picks ---
+  function renderPicks() {
+    quickPicks.querySelectorAll('.pick').forEach((b) => b.remove());
+    QUICK_PICKS.forEach((n) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'bm-btn bm-btn--lg pick ' + (players === n ? '' : 'bm-btn--secondary');
+      btn.textContent = String(n);
+      btn.addEventListener('click', () => {
+        players = players === n ? null : n;
+        playersOther.value = '';
+        randomId = null;
+        render();
+      });
+      quickPicks.insertBefore(btn, playersOther);
     });
+    if (players !== null && !QUICK_PICKS.includes(players)) playersOther.value = String(players);
+  }
 
-    return card;
+  playersOther.addEventListener('input', () => {
+    const v = parseInt(playersOther.value, 10);
+    players = Number.isFinite(v) && v > 0 ? v : null;
+    randomId = null;
+    render();
+  });
+
+  // --- terminal / count ---
+  function renderTerminal(list) {
+    const total = allGames ? allGames.length : 0;
+    const cmd = `$ alcogames --players ${players || 'any'} --sort ${sortSelect.value}`;
+    const out = !allGames
+      ? 'загрузка…'
+      : `${list.length} ${R.plural(list.length, 'совпадение', 'совпадения', 'совпадений')} из ${total}`;
+    terminal.innerHTML = `<div class="bm-terminal__line bm-terminal__line--cmd">${R.escapeHtml(cmd)}</div><div class="bm-terminal__line">${R.escapeHtml(out)}</div>`;
+    if (!allGames) countLabel.textContent = 'загрузка…';
+    else if (players) countLabel.textContent = `${list.length} из ${total} подходят`;
+    else countLabel.textContent = `${total} ${R.plural(total, 'игра', 'игры', 'игр')}`;
+  }
+
+  // --- random pick ---
+  function renderLucky() {
+    const game = randomId ? findGame(randomId) : null;
+    luckyPanel.classList.toggle('hidden', !game);
+    if (!game) return;
+    luckyTitle.textContent = game.name;
+    luckyMeta.textContent = metaLine(game);
+  }
+
+  function pickRandom() {
+    const pool = matched();
+    if (!pool.length) return;
+    randomId = pool[Math.floor(Math.random() * pool.length)].id;
+    renderLucky();
+    luckyPanel.scrollIntoView({ block: 'nearest' });
+  }
+
+  randomBtn.addEventListener('click', pickRandom);
+  luckyAgain.addEventListener('click', pickRandom);
+  luckyOpen.addEventListener('click', () => { if (randomId) openGame(randomId, true); });
+
+  // --- list ---
+  function renderRow(game) {
+    const row = document.createElement('div');
+    row.className = 'game-row';
+    row.setAttribute('role', 'button');
+    row.tabIndex = 0;
+    row.innerHTML = `
+      <div class="game-row__main">
+        <div class="game-row__head">
+          <span class="game-row__caret" aria-hidden="true">&gt;</span>
+          <h3>${R.escapeHtml(game.name)}</h3>
+        </div>
+        <p class="game-row__summary">${R.escapeHtml(R.summaryOf(game))}</p>
+      </div>
+      <div class="game-row__stats">
+        <div class="stat stat--wide"><span class="bm-label">Игроки</span><span class="stat__value">${R.escapeHtml(R.playersLabel(game))}</span></div>
+        <div class="stat"><span class="bm-label">Время</span><span class="stat__value">${R.escapeHtml(R.timeLabel(game))}</span></div>
+        <div class="stat"><span class="bm-label">Лайки</span><span class="stat__value like-count">${game.likes}</span></div>
+      </div>`;
+    row.addEventListener('click', () => openGame(game.id, true));
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGame(game.id, true); }
+    });
+    return row;
   }
 
   function render() {
-    const likedIds = AlcogamesAPI.getLikedIds();
-    let games = allGames;
-
-    if (filterCount !== null) {
-      games = games.filter((g) => matchesPlayerCount(g, filterCount));
-    }
-
-    games = sortGames(games, sortSelect.value);
-
+    renderPicks();
+    const list = matched();
+    renderTerminal(list);
+    renderLucky();
     gamesList.innerHTML = '';
-    if (games.length === 0) {
-      emptyState.textContent = 'Игр не найдено.';
-      emptyState.classList.remove('hidden');
-    } else {
-      emptyState.classList.add('hidden');
-      games.forEach((g) => gamesList.appendChild(renderCard(g, likedIds)));
-    }
-  }
-
-  async function loadGames() {
-    loadingState.classList.remove('hidden');
-    try {
-      allGames = await AlcogamesAPI.getGames();
-      render();
-    } catch (e) {
-      gamesList.innerHTML = '';
-      emptyState.textContent = 'Не удалось загрузить список игр.';
-      emptyState.classList.remove('hidden');
-    } finally {
-      loadingState.classList.add('hidden');
-    }
+    emptyNotice.classList.toggle('hidden', !allGames || list.length > 0);
+    list.forEach((g) => gamesList.appendChild(renderRow(g)));
   }
 
   sortSelect.addEventListener('change', render);
-
-  filterBtn.addEventListener('click', () => {
-    const value = parseInt(filterInput.value, 10);
-    filterCount = Number.isFinite(value) && value > 0 ? value : null;
+  resetBtn.addEventListener('click', () => {
+    players = null;
+    playersOther.value = '';
+    sortSelect.value = 'new';
+    randomId = null;
     render();
   });
 
-  filterResetBtn.addEventListener('click', () => {
-    filterInput.value = '';
-    filterCount = null;
-    render();
+  // --- dialog ---
+  function openGame(id, push) {
+    const game = findGame(id);
+    if (!game) return;
+    openId = id;
+    dialogTitle.textContent = 'правила — ' + game.name.toLowerCase();
+    dialogBody.innerHTML = R.gameDetailHtml(game, AlcogamesAPI.getLikedIds().has(game.id));
+    R.bindLike(dialogBody, game, () => render());
+    dialogBody.querySelector('.close-btn').addEventListener('click', closeGame);
+    scrim.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    dialogBody.scrollTop = 0;
+    dialogClose.focus();
+    if (push) history.pushState({ game: id }, '', '?game=' + encodeURIComponent(id));
+  }
+
+  function closeGame(fromHistory) {
+    if (!openId) return;
+    openId = null;
+    scrim.classList.add('hidden');
+    document.body.style.overflow = '';
+    if (!fromHistory && new URLSearchParams(location.search).has('game')) history.back();
+  }
+
+  dialogClose.addEventListener('click', () => closeGame(false));
+  scrim.addEventListener('click', (e) => { if (e.target === scrim) closeGame(false); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeGame(false); });
+  window.addEventListener('popstate', () => {
+    const id = new URLSearchParams(location.search).get('game');
+    if (id) openGame(id, false);
+    else closeGame(true);
   });
 
-  randomBtn.addEventListener('click', () => {
-    const value = parseInt(randomInput.value, 10);
-    const count = Number.isFinite(value) && value > 0 ? value : null;
-    const candidates =
-      count === null ? allGames : allGames.filter((g) => matchesPlayerCount(g, count));
-
-    randomResult.classList.remove('hidden');
-    if (candidates.length === 0) {
-      randomResult.innerHTML = '<p>Подходящих игр не найдено 😔</p>';
-      return;
+  // --- load ---
+  async function load() {
+    try {
+      allGames = await AlcogamesAPI.getGames();
+      render();
+      const id = new URLSearchParams(location.search).get('game');
+      if (id) openGame(id, false);
+    } catch (e) {
+      allGames = [];
+      errorNotice.classList.remove('hidden');
+      render();
     }
+  }
 
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    randomResult.innerHTML = '<h3>🎲 Случайный выбор:</h3>';
-    randomResult.appendChild(renderCard(pick, AlcogamesAPI.getLikedIds()));
-  });
-
-  loadGames();
+  render();
+  load();
 })();

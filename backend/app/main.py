@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
+from .llm_settings import get_llm_settings
 from .logging_setup import RequestLogMiddleware, get_logger, setup_logging
 from .routers import admin, games, llm
 
@@ -17,10 +18,12 @@ if not settings.ADMIN_TOKEN:
 app = FastAPI(title="Alcogames")
 app.add_middleware(RequestLogMiddleware)
 
+_llm = get_llm_settings()
 log.info(
     "startup",
-    llm_configured=bool(settings.DEEPSEEK_API_KEY),
-    llm_model=settings.DEEPSEEK_MODEL,
+    provider=_llm.provider,
+    llm_ready=_llm.ready(),
+    llm_model=_llm.active_model(),
     data_dir=str(settings.DATA_DIR),
 )
 

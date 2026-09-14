@@ -7,7 +7,9 @@ const AlcogamesAPI = (() => {
     } catch (e) {
       /* ignore non-JSON error bodies */
     }
-    return new Error(detail);
+    const err = new Error(detail);
+    err.status = res.status;
+    return err;
   }
 
   async function getGames() {
@@ -88,6 +90,34 @@ const AlcogamesAPI = (() => {
     return res.json();
   }
 
+  async function enrichGame(id) {
+    const res = await adminFetch(`api/admin/games/${encodeURIComponent(id)}/enrich`, { method: 'POST' });
+    if (!res.ok) throw await toError(res);
+    return res.json();
+  }
+
+  async function getLLMSettings() {
+    const res = await adminFetch('api/admin/llm-settings');
+    if (!res.ok) throw await toError(res);
+    return res.json();
+  }
+
+  async function updateLLMSettings(data) {
+    const res = await adminFetch('api/admin/llm-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw await toError(res);
+    return res.json();
+  }
+
+  async function testLLMSettings() {
+    const res = await adminFetch('api/admin/llm-settings/test', { method: 'POST' });
+    if (!res.ok) throw await toError(res);
+    return res.json();
+  }
+
   return {
     getGames,
     likeGame,
@@ -100,5 +130,9 @@ const AlcogamesAPI = (() => {
     updateGame,
     deleteGame,
     parseWithLLM,
+    enrichGame,
+    getLLMSettings,
+    updateLLMSettings,
+    testLLMSettings,
   };
 })();

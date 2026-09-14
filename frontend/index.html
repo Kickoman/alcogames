@@ -2,48 +2,112 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>Алкогольные игры для вечеринок</title>
+  <title>Алкогольные игры</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/bare-metal.css">
+  <script>
+    // Apply the saved theme before first paint so the page does not flash.
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+        else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) { /* storage unavailable */ }
+    })();
+  </script>
 </head>
 <body>
-  <header class="site-header">
-    <h1>🍻 Алкогольные игры для вечеринок</h1>
-    <a class="admin-link" href="admin.html">Админка</a>
-  </header>
-
-  <section class="controls">
-    <div class="control-group">
-      <label for="sort-select">Сортировка</label>
-      <select id="sort-select">
-        <option value="date-desc">Сначала новые</option>
-        <option value="date-asc">Сначала старые</option>
-        <option value="name-asc">Имя А-Я</option>
-        <option value="name-desc">Имя Я-А</option>
-        <option value="likes-desc">Сначала популярные</option>
-        <option value="likes-asc">Сначала непопулярные</option>
-      </select>
+  <div class="bm-container">
+    <div class="topbar">
+      <nav class="nav">
+        <a class="brand" href="./">~/alcogames</a>
+        <a href="./" aria-current="page">игры</a>
+        <a href="admin.html">админка</a>
+      </nav>
+      <button class="btn" id="theme-toggle" type="button" aria-label="переключить тему">theme</button>
     </div>
 
-    <div class="control-group">
-      <label for="filter-players">Сколько вас?</label>
-      <input type="number" id="filter-players" min="1" placeholder="напр. 4">
-      <button id="filter-btn">Показать подходящие</button>
-      <button id="filter-reset-btn" class="secondary">Сбросить</button>
+    <header class="bm-header">
+      <h1>Алкогольные игры</h1>
+      <p class="bm-lead">Коллекция для профессионалов</p>
+    </header>
+
+    <section class="bm-panel bm-panel--groove">
+      <h3 class="bm-panel__title">Подбор</h3>
+      <div class="picker">
+        <div class="picker__row">
+          <span class="bm-label">Сколько вас</span>
+          <div class="picker__picks" id="quick-picks">
+            <input type="number" class="bm-input picker__other" id="players-other" min="1" max="99" placeholder="иное" aria-label="другое число игроков">
+          </div>
+        </div>
+        <div class="picker__row">
+          <span class="bm-label">Порядок</span>
+          <div class="picker__sort">
+            <select class="bm-select" id="sort-select" aria-label="порядок">
+              <option value="new">сначала новые</option>
+              <option value="old">сначала старые</option>
+              <option value="az">имя а-я</option>
+              <option value="za">имя я-а</option>
+              <option value="pop">сначала популярные</option>
+              <option value="unpop">сначала непопулярные</option>
+            </select>
+          </div>
+          <button type="button" class="bm-btn bm-btn--lg" id="random-btn"><span aria-hidden="true">&gt;</span>случайная игра</button>
+          <button type="button" class="bm-btn bm-btn--secondary bm-btn--lg" id="reset-btn">сбросить</button>
+        </div>
+        <div class="bm-terminal" id="terminal">
+          <div class="bm-terminal__line bm-terminal__line--cmd">$ alcogames --players any --sort new</div>
+          <div class="bm-terminal__line">загрузка…</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bm-panel bm-panel--inset hidden" id="lucky-panel">
+      <h3 class="bm-panel__title">Выпал жребий</h3>
+      <div class="lucky">
+        <div>
+          <div class="lucky__title" id="lucky-title"></div>
+          <div class="bm-meta" id="lucky-meta"></div>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="bm-btn bm-btn--lg" id="lucky-open">открыть правила</button>
+          <button type="button" class="bm-btn bm-btn--secondary bm-btn--lg" id="lucky-again">ещё раз</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="games">
+      <div class="bm-section-head">
+        <h2>Игры</h2>
+        <span class="bm-meta" id="count-label">загрузка…</span>
+      </div>
+      <div class="bm-notice hidden" id="empty-notice" role="note" style="margin-top:16px">
+        <span class="bm-notice__glyph" aria-hidden="true">[i]</span>
+        <div><strong>Ничего не найдено</strong>Для такого количества игроков игр пока нет. Сбросьте фильтр или укажите другое число.</div>
+      </div>
+      <div class="bm-notice bm-notice--error hidden" id="error-notice" role="note" style="margin-top:16px">
+        <span class="bm-notice__glyph" aria-hidden="true">[x]</span>
+        <div><strong>Не удалось загрузить список</strong>Попробуйте обновить страницу чуть позже.</div>
+      </div>
+      <div id="games-list"></div>
+    </section>
+
+    <footer class="footer">
+      <span>budźcie zdarovy · žyvicie bahata · čytajcie <a href="https://www.kanstancin.net/">Kanstancina</a></span>
+      <span>данные в одном json · пейте ответственно</span>
+    </footer>
+  </div>
+
+  <div class="bm-scrim hidden" id="dialog-scrim">
+    <div class="bm-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <div class="bm-dialog__bar">
+        <span id="dialog-title"></span>
+        <button type="button" class="bm-dialog__close" id="dialog-close" aria-label="закрыть">x</button>
+      </div>
+      <div class="bm-dialog__body" id="dialog-body"></div>
     </div>
-
-    <div class="control-group">
-      <label for="random-players">Случайная игра для скольки?</label>
-      <input type="number" id="random-players" min="1" placeholder="напр. 4">
-      <button id="random-btn">🎲 Выбрать случайную!</button>
-    </div>
-  </section>
-
-  <section id="random-result" class="random-result hidden"></section>
-
-  <p id="loading-state" class="loading-state">Загрузка...</p>
-  <p id="empty-state" class="empty-state hidden">Игр не найдено.</p>
-  <section id="games-list" class="games-list"></section>
+  </div>
 
   <script src="js/api.js"></script>
   <script src="js/render-utils.js"></script>

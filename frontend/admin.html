@@ -4,75 +4,264 @@
   <meta charset="utf-8">
   <title>Админка — Алкогольные игры</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="css/bare-metal.css">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+        else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) { /* storage unavailable */ }
+    })();
+  </script>
 </head>
 <body>
-  <header class="site-header">
-    <h1>Админка</h1>
-    <div class="header-actions">
-      <a href="index.html">← К списку игр</a>
-      <button id="logout-btn" class="secondary hidden">Выйти</button>
+  <div class="bm-container">
+    <div class="topbar">
+      <nav class="nav">
+        <a class="brand" href="./">~/alcogames</a>
+        <a href="./">игры</a>
+        <a href="admin.html" aria-current="page">админка</a>
+      </nav>
+      <button class="btn" id="theme-toggle" type="button" aria-label="переключить тему">theme</button>
     </div>
-  </header>
 
-  <section id="login-section" class="panel">
-    <h2>Вход</h2>
-    <p>Введите админский токен (задан в <code>.env</code> на сервере, переменная <code>ADMIN_TOKEN</code>).</p>
-    <input type="password" id="token-input" placeholder="Admin token">
-    <button id="login-btn">Войти</button>
-    <p id="login-error" class="status error hidden"></p>
-  </section>
-
-  <section id="admin-content" class="hidden">
-    <section class="panel llm-assist">
-      <h2>Заполнить через LLM</h2>
-      <p>Вставьте произвольное описание игры — LLM попробует разложить его на поля формы ниже. Результат нужно проверить перед сохранением.</p>
-      <textarea id="llm-input" rows="5" placeholder="Например: Царь горы - весёлая игра для компании от 4 человек, где..."></textarea>
-      <button id="llm-parse-btn">Распарсить через LLM</button>
-      <p id="llm-status" class="status hidden"></p>
+    <section id="login-section" class="bm-container" style="gap:24px">
+      <header class="bm-header">
+        <h1>Админка</h1>
+        <p class="bm-lead">Доступ по общему секретному токену. Он сохраняется в браузере — вводить нужно один раз.</p>
+      </header>
+      <section class="bm-panel bm-panel--groove login-panel">
+        <h3 class="bm-panel__title">Вход</h3>
+        <form id="login-form" class="bm-form" novalidate>
+          <div class="bm-field">
+            <label class="bm-field__label" for="token-input">ADMIN_TOKEN</label>
+            <div class="bm-input-group">
+              <span class="bm-input-group__prefix" aria-hidden="true">$</span>
+              <input class="bm-input" id="token-input" type="password" placeholder="вставьте токен" autocomplete="off">
+            </div>
+            <p class="bm-field__hint" id="login-hint">значение ADMIN_TOKEN из .env</p>
+          </div>
+          <div class="bm-form__actions">
+            <button type="submit" class="bm-btn bm-btn--lg" id="login-btn"><span aria-hidden="true">&gt;</span>войти</button>
+          </div>
+        </form>
+      </section>
     </section>
 
-    <section class="panel game-form">
-      <h2 id="form-title">Новая игра</h2>
-      <form id="game-form">
-        <label>Название
-          <input type="text" id="field-name" required>
-        </label>
-        <div class="players-fields">
-          <label>Мин. игроков
-            <input type="number" id="field-min" min="1" value="1" required>
-          </label>
-          <label>Макс. игроков
-            <input type="number" id="field-max" min="1">
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" id="field-no-max"> Без верхней границы (любое количество)
-          </label>
+    <section id="admin-content" class="bm-container hidden">
+      <header class="bm-header bm-header--row">
+        <div class="bm-header">
+          <h1>Админка</h1>
+          <p class="bm-lead" id="admin-lead">Правки пишутся в games.json сразу.</p>
         </div>
-        <label>Описание
-          <textarea id="field-description" rows="12" required></textarea>
-        </label>
-        <label>Источник (опционально)
-          <input type="text" id="field-source" placeholder="URL или произвольная ссылка">
-        </label>
-        <div class="form-actions">
-          <button type="submit" id="save-btn">Сохранить</button>
-          <button type="button" id="cancel-edit-btn" class="secondary hidden">Отменить редактирование</button>
+        <button type="button" class="bm-btn bm-btn--secondary bm-btn--lg" id="logout-btn">выйти</button>
+      </header>
+
+      <div class="bm-notice hidden" id="global-notice" role="status">
+        <span class="bm-notice__glyph" aria-hidden="true">[ok]</span>
+        <div><strong class="bm-notice__title">Сохранено</strong><span class="bm-notice__text"></span></div>
+      </div>
+
+      <div class="admin-grid">
+        <section class="admin-col" id="games-section">
+          <div class="bm-section-head">
+            <h2>Игры</h2>
+            <button type="button" class="bm-btn" id="new-game-btn"><span aria-hidden="true">[+]</span>новая игра</button>
+          </div>
+          <div class="bm-notice hidden" id="games-empty" role="note">
+            <span class="bm-notice__glyph" aria-hidden="true">[i]</span>
+            <div><strong class="bm-notice__title">Каталог пуст</strong><span class="bm-notice__text">В games.json пока нет ни одной игры. Добавьте первую формой справа или вставьте текст для разбора.</span></div>
+          </div>
+          <div class="admin-list" id="games-list"></div>
+        </section>
+
+        <div class="admin-col">
+          <section class="bm-panel bm-panel--groove" id="game-form-panel">
+            <h3 class="bm-panel__title" id="form-title">Новая игра</h3>
+            <form id="game-form" class="bm-form" novalidate>
+              <div class="bm-field">
+                <label class="bm-field__label" for="field-name">название</label>
+                <input class="bm-input" id="field-name" type="text" required>
+              </div>
+              <div class="bm-field-row">
+                <div class="bm-field">
+                  <label class="bm-field__label" for="field-min">мин. игроков</label>
+                  <input class="bm-input" id="field-min" type="number" min="1" value="1" required>
+                </div>
+                <div class="bm-field">
+                  <label class="bm-field__label" for="field-max">макс. игроков</label>
+                  <input class="bm-input" id="field-max" type="number" min="1">
+                </div>
+              </div>
+              <label class="bm-check">
+                <input type="checkbox" id="field-no-max">
+                <span class="bm-check__glyph" aria-hidden="true"></span>
+                <span>без верхней границы</span>
+              </label>
+              <div class="bm-field">
+                <label class="bm-field__label" for="field-description">описание (полные правила)</label>
+                <textarea class="bm-input" id="field-description" rows="8" required></textarea>
+                <p class="bm-field__hint">полные правила игры; краткое описание для списка — отдельное поле ниже</p>
+              </div>
+              <div class="bm-field">
+                <label class="bm-field__label" for="field-summary">краткое описание</label>
+                <input class="bm-input" id="field-summary" type="text" maxlength="200" placeholder="одно предложение для списка">
+              </div>
+              <div class="bm-field-row">
+                <div class="bm-field">
+                  <label class="bm-field__label" for="field-minutes">время, мин</label>
+                  <input class="bm-input" id="field-minutes" type="number" min="1" max="600">
+                </div>
+                <div class="bm-field">
+                  <label class="bm-field__label" for="field-tags">теги через запятую</label>
+                  <input class="bm-input" id="field-tags" type="text" placeholder="кубики, быстрая">
+                </div>
+              </div>
+              <div class="bm-field">
+                <label class="bm-field__label" for="field-props">реквизит</label>
+                <input class="bm-input" id="field-props" type="text" placeholder="колода карт, стаканы">
+              </div>
+              <div class="bm-field">
+                <label class="bm-field__label" for="field-source">источник</label>
+                <input class="bm-input" id="field-source" type="text" placeholder="народная">
+              </div>
+              <div class="bm-notice bm-notice--error hidden" id="form-status" role="alert">
+                <span class="bm-notice__glyph" aria-hidden="true">[x]</span>
+                <div><strong class="bm-notice__title">Не сохранено</strong><span class="bm-notice__text"></span></div>
+              </div>
+              <div class="bm-form__actions bm-form__actions--rule">
+                <button type="submit" class="bm-btn bm-btn--lg" id="save-btn"><span aria-hidden="true">&gt;</span>сохранить</button>
+                <button type="button" class="bm-btn bm-btn--secondary bm-btn--lg hidden" id="cancel-edit-btn">отмена</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="bm-panel bm-panel--groove" id="llm-parse-panel">
+            <h3 class="bm-panel__title">Разбор текста через LLM</h3>
+            <p class="panel-text">Вставьте произвольное описание игры — модель разложит его по полям формы выше. Результат не сохраняется автоматически: проверьте поля и нажмите «сохранить».</p>
+            <div class="bm-form">
+              <div class="bm-field">
+                <label class="bm-field__label" for="llm-input">сырой текст</label>
+                <textarea class="bm-input" id="llm-input" rows="5" placeholder="Например: Царь горы — весёлая игра для компании от 4 человек, где..."></textarea>
+              </div>
+              <div class="bm-form__actions">
+                <button type="button" class="bm-btn bm-btn--lg" id="llm-parse-btn" disabled><span aria-hidden="true">&gt;</span><span id="llm-parse-label">распарсить через LLM</span></button>
+                <span class="bm-meta" id="llm-provider-info"></span>
+              </div>
+              <div class="bm-terminal" id="llm-terminal">
+                <div class="bm-terminal__line bm-terminal__line--cmd">$ POST /api/admin/parse</div>
+                <div class="bm-terminal__line">ожидание ввода</div>
+              </div>
+              <div class="bm-notice hidden" id="llm-status" role="status">
+                <span class="bm-notice__glyph" aria-hidden="true">[ok]</span>
+                <div><strong class="bm-notice__title"></strong><span class="bm-notice__text"></span></div>
+              </div>
+              <div class="admin-subsection">
+                <p>Краткое описание, время, теги и реквизит у сохранённых игр можно дозаполнить моделью — правила она не трогает. Кнопка «llm» в строке игры обрабатывает одну игру заново.</p>
+                <div class="bm-form__actions">
+                  <button type="button" class="bm-btn bm-btn--secondary" id="llm-enrich-all-btn">дозаполнить теги и время у игр без них</button>
+                </div>
+                <div class="bm-notice hidden" id="llm-enrich-status" role="status">
+                  <span class="bm-notice__glyph" aria-hidden="true">[ok]</span>
+                  <div><strong class="bm-notice__title"></strong><span class="bm-notice__text"></span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <details class="bm-panel bm-panel--groove bm-details" id="llm-settings">
+            <summary class="bm-panel__title">Настройки LLM</summary>
+            <p class="panel-text">Провайдер и ключи хранятся на сервере (<code>data/llm_settings.json</code>), значения из <code>.env</code> — только по умолчанию. Ключи в форме не показываются: пустое поле оставляет сохранённый ключ.</p>
+            <form id="llm-settings-form" class="bm-form" novalidate>
+              <div class="bm-field">
+                <label class="bm-field__label" for="llm-provider">провайдер</label>
+                <select class="bm-select" id="llm-provider">
+                  <option value="none">выключено</option>
+                  <option value="deepseek">deepseek</option>
+                  <option value="yandex">yandex cloud (yandexgpt)</option>
+                </select>
+              </div>
+
+              <fieldset class="bm-panel bm-panel--hairline bm-fieldset" id="llm-card-deepseek">
+                <legend class="bm-fieldset__legend">deepseek</legend>
+                <div class="bm-field">
+                  <label class="bm-field__label" for="llm-deepseek-key">api-ключ</label>
+                  <input class="bm-input" type="password" id="llm-deepseek-key" autocomplete="off">
+                </div>
+                <label class="bm-check">
+                  <input type="checkbox" id="llm-deepseek-clear">
+                  <span class="bm-check__glyph" aria-hidden="true"></span>
+                  <span>очистить сохранённый ключ</span>
+                </label>
+                <div class="bm-field">
+                  <label class="bm-field__label" for="llm-deepseek-base-url">базовый url</label>
+                  <input class="bm-input" type="text" id="llm-deepseek-base-url" placeholder="https://api.deepseek.com">
+                </div>
+                <div class="bm-field">
+                  <label class="bm-field__label" for="llm-deepseek-model">модель</label>
+                  <input class="bm-input" type="text" id="llm-deepseek-model" placeholder="deepseek-chat">
+                </div>
+              </fieldset>
+
+              <fieldset class="bm-panel bm-panel--hairline bm-fieldset" id="llm-card-yandex">
+                <legend class="bm-fieldset__legend">yandex cloud</legend>
+                <div class="bm-field">
+                  <label class="bm-field__label" for="llm-yandex-key">api-ключ сервисного аккаунта</label>
+                  <input class="bm-input" type="password" id="llm-yandex-key" autocomplete="off">
+                </div>
+                <label class="bm-check">
+                  <input type="checkbox" id="llm-yandex-clear">
+                  <span class="bm-check__glyph" aria-hidden="true"></span>
+                  <span>очистить сохранённый ключ</span>
+                </label>
+                <div class="bm-field">
+                  <label class="bm-field__label" for="llm-yandex-folder">идентификатор каталога (folder id)</label>
+                  <input class="bm-input" type="text" id="llm-yandex-folder" placeholder="b1g…">
+                </div>
+                <div class="bm-field">
+                  <label class="bm-field__label" for="llm-yandex-model">модель</label>
+                  <input class="bm-input" type="text" id="llm-yandex-model" placeholder="yandexgpt-lite/latest">
+                </div>
+                <p class="bm-field__hint">сервисному аккаунту нужна роль ai.languageModels.user, ключу — область yc.ai.languageModels.execute; модель подставляется в gpt://&lt;каталог&gt;/&lt;модель&gt;, например yandexgpt-lite/latest или yandexgpt/latest</p>
+              </fieldset>
+
+              <div class="bm-notice hidden" id="llm-settings-status" role="status">
+                <span class="bm-notice__glyph" aria-hidden="true">[ok]</span>
+                <div><strong class="bm-notice__title"></strong><span class="bm-notice__text"></span></div>
+              </div>
+              <div class="bm-form__actions bm-form__actions--rule">
+                <button type="submit" class="bm-btn bm-btn--lg" id="llm-save-btn"><span aria-hidden="true">&gt;</span>сохранить</button>
+                <button type="button" class="bm-btn bm-btn--secondary bm-btn--lg" id="llm-test-btn">проверить</button>
+              </div>
+            </form>
+          </details>
         </div>
-        <p id="form-status" class="status hidden"></p>
-      </form>
+      </div>
     </section>
 
-    <section class="panel games-table-section">
-      <h2>Существующие игры</h2>
-      <table class="games-table">
-        <thead>
-          <tr><th>Название</th><th>Игроки</th><th>Лайки</th><th></th></tr>
-        </thead>
-        <tbody id="games-table-body"></tbody>
-      </table>
-    </section>
-  </section>
+    <footer class="footer">
+      <span>budźcie zdarovy · žyvicie bahata · čytajcie <a href="https://www.kanstancin.net/">Kanstancina</a></span>
+      <span>админка · токен один на всех, полноценной авторизации нет</span>
+    </footer>
+  </div>
+
+  <div class="bm-scrim hidden" id="confirm-scrim">
+    <div class="bm-dialog bm-dialog--sm" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div class="bm-dialog__bar">
+        <span id="confirm-title">удалить игру</span>
+        <button type="button" class="bm-dialog__close" id="confirm-close" aria-label="закрыть">x</button>
+      </div>
+      <div class="bm-dialog__body">
+        <p id="confirm-text" style="margin:0"></p>
+        <div class="btn-row">
+          <button type="button" class="bm-btn bm-btn--danger bm-btn--lg" id="confirm-ok">удалить</button>
+          <button type="button" class="bm-btn bm-btn--secondary bm-btn--lg" id="confirm-cancel">отмена</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="js/api.js"></script>
   <script src="js/render-utils.js"></script>

@@ -2,18 +2,43 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>Игра — Алкогольные игры для вечеринок</title>
+  <title>Игра — Алкогольные игры</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/bare-metal.css">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+        else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) { /* storage unavailable */ }
+    })();
+  </script>
 </head>
 <body>
-  <header class="site-header">
-    <a class="back-link" href="index.html">← К списку игр</a>
-  </header>
+  <div class="bm-container">
+    <div class="topbar">
+      <nav class="nav">
+        <a class="brand" href="./">~/alcogames</a>
+        <a href="./" aria-current="page">игры</a>
+        <a href="admin.html">админка</a>
+      </nav>
+      <button class="btn" id="theme-toggle" type="button" aria-label="переключить тему">theme</button>
+    </div>
 
-  <section id="game-detail" class="panel game-detail">
-    <p id="game-status" class="loading-state">Загрузка...</p>
-  </section>
+    <header class="bm-header">
+      <h1 id="game-title">Игра</h1>
+    </header>
+
+    <section class="bm-panel bm-panel--groove" id="game-detail">
+      <p class="status-line" id="game-status">загрузка…</p>
+    </section>
+
+    <footer class="footer">
+      <span>budźcie zdarovy · žyvicie bahata · čytajcie <a href="https://www.kanstancin.net/">Kanstancina</a></span>
+      <span>данные в одном json · пейте ответственно</span>
+    </footer>
+  </div>
 
   <script src="js/api.js"></script>
   <script src="js/render-utils.js"></script>
