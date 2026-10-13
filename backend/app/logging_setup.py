@@ -7,11 +7,13 @@ stdout, so the service stays unaware of where logs end up.
 Two streams are produced:
 
 ``http_request``
-    One event per request: method, route, status, duration.
+    One event per request: method, route, status, duration, the client's
+    addresses, its User-Agent and the host of the site it came from.
 ``internal``
     Anything the handlers choose to record, via ``get_logger()``.
 
-Note on secrets: request headers are never logged, which is what keeps
+Note on secrets: of the request headers only User-Agent, the host part of
+Referer and the proxy's address headers are logged, which is what keeps
 ``X-Admin-Token`` out of the log store. Keep it that way.
 """
 
@@ -24,6 +26,7 @@ import time
 import uuid
 from contextvars import ContextVar
 from typing import Any
+from urllib.parse import urlsplit
 
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -36,6 +39,10 @@ _trace_id: ContextVar[str] = ContextVar("trace_id", default="")
 
 # Routes logged at debug level, i.e. dropped at the default level.
 QUIET_ROUTES = frozenset({"/api/health"})
+
+# Header values in a log are cut to this many characters: the client controls
+# them, the log store pays for them.
+LOGGED_TEXT = 200
 
 
 def _add_context(_logger: Any, _name: str, event: dict) -> dict:
@@ -162,6 +169,15 @@ def client_addresses(request) -> dict:
     return fields
 
 
+def _referrer_host(request: Request) -> str:
+    """Host of the page that linked here; empty for the site's own pages."""
+    try:
+        host = urlsplit(request.headers.get("referer", "")).netloc
+    except ValueError:
+        return ""
+    return "" if host == request.headers.get("host", "") else host[:LOGGED_TEXT]
+
+
 def _route_of(request: Request) -> str:
     """Route pattern, not the raw path.
 
@@ -211,6 +227,11 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             else:
                 level = "info"
 
+            extra = {"user_agent": request.headers.get("user-agent", "")[:LOGGED_TEXT]}
+            referrer = _referrer_host(request)
+            if referrer:
+                extra["referrer_host"] = referrer
+
             getattr(self._log, level)(
                 "http_request",
                 http_method=request.method,
@@ -219,4 +240,5 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
                 duration_ms=round((time.perf_counter() - started) * 1000, 2),
                 error=error,
                 **client_addresses(request),
+                **extra,
             )
